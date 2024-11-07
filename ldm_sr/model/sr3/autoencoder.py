@@ -2,11 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import pytorch_lightning as pl
-
+from contextlib import contextmanager
 from taming.modules.vqvae.quantize import VectorQuantizer2 as VectorQuantizer
 import math
 import numpy as np
 from einops import rearrange
+from model.utils import instantiate_from_config
 
 class LinearAttention(nn.Module):
     def __init__(self, dim, heads=4, dim_head=32):

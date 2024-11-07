@@ -10,8 +10,10 @@ import numpy as np
 from tqdm import tqdm
 from einops import rearrange
 
-from utils import instantiate_from_config
-from autoencoder import VQModelInterface
+from model.utils import instantiate_from_config
+from model.sr3.autoencoder import VQModelInterface
+from pytorch_lightning.utilities import rank_zero_only
+
 
 def _warmup_beta(linear_start, linear_end, n_timestep, warmup_frac):
     betas = linear_end * np.ones(n_timestep, dtype=np.float64)
@@ -118,7 +120,7 @@ class GaussianDiffusion(pl.LightningModule):
         self.logvar = torch.full(fill_value=0., size=(self.num_timesteps,))
         if self.learn_logvar:
             self.logvar = nn.Parameter(self.logvar, requires_grad=True)
-        self.set_loss()
+        self.set_loss("cuda")
 
     def set_loss(self, device):
         if self.loss_type == 'l1':
@@ -170,13 +172,9 @@ class GaussianDiffusion(pl.LightningModule):
         self.register_buffer('posterior_mean_coef2', to_torch(
             (1. - alphas_cumprod_prev) * np.sqrt(alphas) / (1. - alphas_cumprod)))
 
-        if self.parameterization == "eps":
-            lvlb_weights = self.betas ** 2 / (
-                        2 * self.posterior_variance * to_torch(alphas) * (1 - self.alphas_cumprod))
-        elif self.parameterization == "x0":
-            lvlb_weights = 0.5 * np.sqrt(torch.Tensor(alphas_cumprod)) / (2. * 1 - torch.Tensor(alphas_cumprod))
-        else:
-            raise NotImplementedError("mu not supported")
+  
+        lvlb_weights = self.betas ** 2 / (
+                    2 * self.posterior_variance * to_torch(alphas) * (1 - self.alphas_cumprod))
         # TODO how to choose this term
         lvlb_weights[0] = lvlb_weights[1]
         self.register_buffer('lvlb_weights', lvlb_weights, persistent=False)
@@ -342,7 +340,7 @@ class GaussianDiffusion(pl.LightningModule):
 class LatentDiffusion(GaussianDiffusion):
     def __init__(self, 
                  first_stage_config, 
-                 cond_stage_cconfig,
+                 cond_stage_config,
                  num_timesteps_cond=None,
                  scale_factor=1.0,
                  scale_by_std=False,

@@ -1,10 +1,8 @@
 model:
   base_learning_rate: 1.0e-06
-  target: model.sr3_modules.ddpm.LatentDiffusion
+  target: model.sr3.diffusion.LatentDiffusion
   params:
     loss_type: l1
-    first_stage_key: image
-    cond_stage_key: image
     image_size: 32
     channels: 3
 
@@ -18,15 +16,14 @@ model:
         f_min: [1.]
 
     unet_config:
-      target: model.sr3_modules.unet.UNet
+      target: model.sr3.unet.UNet
       params:
-        in_channels: 6
-        out_channels: 3
-        inner_channel: 64,
+        in_channel: 6
+        out_channel: 3
+        inner_channel: 64
         attn_res:
           - 16
-        num_res_blocks: 2
-        channel_mult:
+        channel_mults:
           - 1
           - 2
           - 4
@@ -34,14 +31,15 @@ model:
           - 8
         res_blocks: 2
         dropout: 0.2
+        image_size: 32
 
     first_stage_config:
-      target: model.sr3_modules.autoencoder.VQModelInterface
+      target: model.sr3.autoencoder.VQModelInterface
       params:
         embed_dim: 3
         n_embed: 8192
-        ckpt_path: /content/drive/MyDrive/ckpts/VQVAE-epoch=10.ckpt
-        ddconfij:
+        ckpt_path:
+        ddconfig:
           double_z: false
           z_channels: 3
           resolution: 512
